@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power Grid: Urban APES Edition</title>
+    <style>
+        :root {
+            --bg-dark: #0f0f1b;
+            --hud-bg: rgba(15, 15, 27, 0.7);
+            --neon-blue: #0ff;
+            --neon-pink: #ff007f;
+            --neon-yellow: #ffea00;
+            --neon-green: #39ff14;
+            --neon-red: #ff073a;
+            
+            --coal: #2b2b2b;
+            --oil: #422818;
+            --gas: #1a364a;
+            --solar: #5c4e12;
+            --wind: #254a63;
+            --nuclear: #144525;
+            --city: #1e1e1e;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&display=swap');
+
+        body {
+            margin: 0;
+            font-family: 'Oswald', Impact, sans-serif;
+            background-color: var(--bg-dark);
+            color: #fff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            /* Synthwave sunset background */
+            background: linear-gradient(to bottom, #110022 0%, #3a005c 40%, #ff007f 60%, #000000 100%);
+            position: relative;
+        }
+
+        /* Animated Grid Floor */
+        body::before {
+            content: "";
+            position: absolute;
+            bottom: 0; left: 0; width: 100%; height: 40%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.2) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.2) 1px, transparent 1px);
+            background-size: 40px 15px;
+            transform: perspective(500px) rotateX(60deg);
+            transform-origin: top;
+            animation: moveGrid 3s linear infinite;
+            z-index: 0;
+        }
+
+        @keyframes moveGrid {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 15px; }
+        }
+
+        /* Scanline Overlay */
+        body::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,0,0,0.15),
+                rgba(0,0,0,0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* HUD & UI Layout */
+        #hud-sidebar {
+            width: 320px;
+            background: var(--hud-bg);
+            backdrop-filter: blur(10px);
+            border-right: 3px solid var(--neon-pink);
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            z-index: 10;
+            box-shadow: 5px 0 25px rgba(255, 0, 127, 0.3);
+        }
+
+        h2 { 
+            text-transform: uppercase; 
+            letter-spacing: 3px; 
+            color: var(--neon-pink); 
+            text-shadow: 0 0 10px var(--neon-pink);
+            margin-top: 0; 
+            font-size: 28px;
+            font-style: italic;
+        }
+
+        .player-card {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 2px solid #333;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .active-player { 
+            border-color: var(--neon-blue); 
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+        
+        .active-player::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(to bottom right, transparent, rgba(0, 255, 255, 0.1), transparent);
+            transform: rotate(45deg);
+            animation: shine 2s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+
+        /* Sidebar pollution mini-bar */
+        .mini-pol-bar-bg {
+            width: 100%; height: 10px;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .mini-pol-bar-fill {
+            height: 100%;
+            background: var(--neon-red);
+            box-shadow: 0 0 5px var(--neon-red);
+            transition: width 0.3s;
+        }
+
+        #main-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Round Counter */
+        #round-counter {
+            font-size: 28px;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 10px var(--neon-yellow);
+            text-align: center;
+            margin-bottom: 10px;
+            letter-spacing: 3px;
+            font-weight: bold;
+            font-style: italic;
+        }
+
+        /* Global Pollution Meter */
+        #pollution-container {
+            margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            padding: 15px;
+            border: 2px solid var(--neon-red);
+            border-radius: 8px;
+            text-align: center;
+            font-size: 20px;
+            letter-spacing: 2px;
+            box-shadow: 0 0 20px rgba(255, 7, 58, 0.4);
+        }
+        #pollution-bar-bg {
+            width: 100%; height: 25px;
+            background: #111;
+            margin-top: 10px;
+            border: 2px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #pollution-bar-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-yellow), var(--neon-red));
+            background-size: 300% 100%;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        /* Map & Zones */
+        #map-container {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+        }
+
+        #map {
+            display: grid;
+            grid-template-columns: repeat(3, 260px);
+            grid-template-rows: repeat(3, 180px);
+            gap: 20px;
+            position: relative;
+        }
+
+        .zone {
+            background-color: #222;
+            border: 3px solid #444;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            text-align: center;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.9), 0 10px 20px rgba(0,0,0,0.5);
+            /* Hazard stripes overlay */
+            background-image: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 10px,
+                rgba(0,0,0,0.3) 10px,
+                rgba(0,0,0,0.3) 20px
+            );
+        }
+        .zone::before {
+            content: ''; position: absolute;
+            top: 8px; left: 8px; right: 8px; bottom: 8px;
+            background: inherit;
+            border-radius: 6px;
+            z-index: 0;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+        .zone-content { 
+            position: relative; z-index: 1; 
+            background: rgba(0,0,0,0.85); 
+            padding: 15px; 
+            border-radius: 6px; 
+            border: 1px solid #555; 
+            width: 85%; 
+        }
+        
+        .zone:hover { 
+            border-color: var(--neon-pink); 
+            box-shadow: 0 0 25px rgba(255, 0, 127, 0.5), inset 0 0 15px rgba(255,0,127,0.3); 
+            transform: translateY(-5px);
+        }
+        .zone-title { font-size: 22px; color: #fff; text-shadow: 1px 1px 0px #000; letter-spacing: 1px; }
+        .zone-owner { font-size: 14px; margin-top: 8px; color: #aaa; text-transform: uppercase;}
+        
+        /* Animated Tokens (Top-Down Cars) */
+        .player-token {
+            width: 36px; height: 20px;
+            border-radius: 4px;
+            position: absolute;
+            box-shadow: inset -5px 0 10px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.6);
+            transition: top 0.6s cubic-bezier(0.25, 1, 0.5, 1), left 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 5;
+            pointer-events: none;
+        }
+        /* Headlights */
+        .player-token::after { 
+            content: ''; position: absolute; 
+            right: 0; top: 2px; width: 6px; height: 4px; 
+            background: #fff; border-radius: 0 50% 50% 0; 
+            box-shadow: 10px 0 15px 5px rgba(255,255,255,0.8); 
+        }
+        .player-token::before { 
+            content: ''; position: absolute; 
+            right: 0; bottom: 2px; width: 6px; height: 4px; 
+            background: #fff; border-radius: 0 50% 50% 0; 
+            box-shadow: 10px 0 15px 5px rgba(255,255,255,0.8); 
+        }
+        /* Windshield */
+        .windshield {
+            position: absolute; right: 8px; top: 3px; bottom: 3px; width: 6px;
+            background: #111; border-radius: 2px;
+        }
+
+        /* Controls */
+        #controls {
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            padding: 20px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border: 2px solid var(--neon-blue);
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--neon-blue);
+            transition: all 0.2s;
+            border-radius: 4px;
+            text-shadow: 0 0 5px var(--neon-blue);
+        }
+        button:hover:not(:disabled) { 
+            background: var(--neon-blue); 
+            color: #000; 
+            box-shadow: 0 0 20px var(--neon-blue); 
+            text-shadow: none;
+            transform: skewX(-5deg);
+        }
+        button:disabled { border-color: #444; color: #555; background: rgba(0,0,0,0.5); text-shadow: none; cursor: not-allowed; }
+
+        #btn-end-turn { border-color: var(--neon-green); color: var(--neon-green); text-shadow: 0 0 5px var(--neon-green); }
+        #btn-end-turn:hover:not(:disabled) { background: var(--neon-green); color: #000; box-shadow: 0 0 20px var(--neon-green); }
+
+        #dice-container { display: flex; align-items: center; }
+        #dice-result {
+            width: 50px; height: 50px;
+            background: linear-gradient(135deg, #eee, #aaa); 
+            color: #000;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 30px; 
+            margin-left: 20px; 
+            border-radius: 8px;
+            box-shadow: inset 0 0 10px #fff, 0 5px 15px rgba(0,0,0,0.8);
+            border: 2px solid #fff;
+        }
+        #multiplier-display {
+            display: none;
+            color: var(--neon-yellow);
+            margin-left: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--neon-yellow);
+            font-style: italic;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(2px, 2px) rotate(0deg); }
+            10% { transform: translate(-2px, -4px) rotate(-15deg); }
+            20% { transform: translate(-4px, 0px) rotate(15deg); }
+            30% { transform: translate(4px, 4px) rotate(0deg); }
+            40% { transform: translate(2px, -2px) rotate(15deg); }
+            50% { transform: translate(-2px, 4px) rotate(-15deg); }
+            60% { transform: translate(-4px, 2px) rotate(0deg); }
+            70% { transform: translate(4px, 2px) rotate(-15deg); }
+            80% { transform: translate(-2px, -2px) rotate(15deg); }
+            90% { transform: translate(2px, 4px) rotate(0deg); }
+            100% { transform: translate(2px, -4px) rotate(-15deg); }
+        }
+        .rolling { animation: shake 0.4s; }
+
+        /* Screens & Modals */
+        #setup-screen, #end-screen, #modal, #tutorial-screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .modal-content {
+            background: rgba(20, 20, 20, 0.95);
+            border: 3px solid var(--neon-blue);
+            width: 550px;
+            max-width: 90%;
+            padding: 40px;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.2);
+            text-align: center;
+            border-radius: 8px;
+            position: relative;
+        }
+        
+        @keyframes glitch {
+            0% { transform: translate(0) skewX(0deg); }
+            20% { transform: translate(-4px, 4px) skewX(10deg); }
+            40% { transform: translate(-4px, -4px) skewX(-10deg); }
+            60% { transform: translate(4px, 4px) skewX(5deg); }
+            80% { transform: translate(4px, -4px) skewX(-5deg); }
+            100% { transform: translate(0) skewX(0deg); }
+        }
+        .crisis-border { border-color: var(--neon-red) !important; animation: glitch 0.4s; box-shadow: 0 0 40px var(--neon-red); }
+
+        .modal-title { font-size: 36px; color: var(--neon-blue); margin-bottom: 15px; letter-spacing: 2px; text-shadow: 2px 2px 0 #000; font-style: italic;}
+        .modal-desc { font-size: 20px; margin-bottom: 25px; color: #eee; line-height: 1.5; white-space: pre-wrap; font-family: 'Trebuchet MS', sans-serif;}
+        
+        .modal-apes {
+            background: rgba(10, 10, 10, 0.95);
+            padding: 20px;
+            border-left: 5px solid var(--neon-pink);
+            font-size: 16px;
+            text-align: left;
+            margin-bottom: 30px;
+            font-family: 'Trebuchet MS', sans-serif;
+            color: #ddd;
+        }
+        .modal-apes-label {
+            color: var(--neon-pink);
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            display: block;
+        }
+
+        #setup-screen h1 { 
+            font-size: 90px; 
+            color: transparent; 
+            -webkit-text-stroke: 2px var(--neon-pink);
+            text-shadow: 0 0 20px var(--neon-pink), 5px 5px 0px rgba(255,0,127,0.5); 
+            margin-bottom: 0;
+            font-style: italic;
+        }
+        
+        .wasted-text {
+            font-size: 8vw; /* responsive size */
+            color: var(--neon-red);
+            text-shadow: 4px 4px 0 #000, -2px -2px 0 #000, 0 0 30px var(--neon-red);
+            margin: 0;
+            letter-spacing: 8px;
+            text-align: center;
+            transform: scale(1);
+            animation: wastedStamp 0.5s ease-in;
+        }
+        @keyframes wastedStamp {
+            0% { transform: scale(3); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        table { width: 80%; border-collapse: collapse; margin: 30px 0; background: rgba(0,0,0,0.8); border: 2px solid #444;}
+        th, td { border: 1px solid #333; padding: 15px; text-align: left; font-size: 20px;}
+        th { background: #111; color: var(--neon-blue); letter-spacing: 1px;}
+
+        #turn-instructions { margin-left: 20px; font-size: 22px; color: var(--neon-yellow); letter-spacing: 1px; text-shadow: 0 0 5px var(--neon-yellow);}
+        
+        #tutorial-progress { margin-bottom: 15px; color: var(--neon-green); font-size: 18px; letter-spacing: 3px;}
+        .tut-btn-container { display: flex; justify-content: space-between; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <h1>POWER GRID</h1>
+        <p style="font-size: 28px; letter-spacing: 5px; color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); margin-bottom: 50px;">URBAN APES EDITION</p>
+        <div>
+            <button onclick="startGame(2)">2 Players</button>
+            <button onclick="startGame(3)">3 Players</button>
+            <button onclick="startGame(4)">4 Players</button>
+        </div>
+        <div style="margin-top: 40px;">
+            <button onclick="startTutorial('menu')" style="border-color: var(--neon-yellow); color: var(--neon-yellow); text-shadow: 0 0 5px var(--neon-yellow);">HOW TO PLAY (BRIEFING)</button>
+        </div>
+    </div>
+
+    <div id="tutorial-screen" style="display: none;">
+        <div class="modal-content" style="border-color: var(--neon-yellow); box-shadow: 0 0 30px rgba(255, 234, 0, 0.2);">
+            <div id="tutorial-progress">BRIEFING: STEP 1/6</div>
+            <div class="modal-title" id="tutorial-title" style="color: var(--neon-yellow);">TITLE</div>
+            <div class="modal-desc" id="tutorial-desc">Description text.</div>
+            
+            <div class="tut-btn-container">
+                <button id="btn-tut-prev" onclick="changeTutorial(-1)" disabled>Back</button>
+                <button id="btn-tut-next" onclick="changeTutorial(1)">Next</button>
+            </div>
+            <button id="btn-tut-close" onclick="closeTutorial()" style="margin-top: 20px; width: 100%; border-color: #555; color: #aaa;">Skip to Map</button>
+        </div>
+    </div>
+
+    <div id="end-screen" style="display: none;">
+        <h1 id="end-title" class="wasted-text">ENVIRONMENTAL COLLAPSE</h1>
+        <h3 id="end-subtitle" style="color: #ccc; font-size: 28px; text-transform: uppercase; letter-spacing: 2px;"></h3>
+        <div id="results-table" style="width: 100%; display: flex; justify-content: center;"></div>
+        <button onclick="location.reload()" style="border-color: var(--neon-pink); color: var(--neon-pink);">PLAY AGAIN</button>
+    </div>
+
+    <div id="hud-sidebar">
+        <h2>Players</h2>
+        <div id="players-container" style="flex-grow: 1;"></div>
+        <button onclick="startTutorial('game')" style="margin-top: auto; border-color: #666; color: #bbb; font-size: 16px; padding: 12px;">[?] Review Briefing</button>
+    </div>
+
+    <div id="main-area">
+        <div id="round-counter">
+            <span id="round-counter-text">ROUND 1 OF 15</span>
+        </div>
+
+        <div id="pollution-container">
+            GLOBAL POLLUTION LEVEL
+            <div id="pollution-bar-bg">
+                <div id="pollution-bar-fill"></div>
+            </div>
+            <div id="pollution-text" style="margin-top: 8px; color: #fff;">0 / 100</div>
+        </div>
+
+        <div id="map-container">
+            <div id="map">
+                </div>
+        </div>
+
+        <div id="controls">
+            <div id="dice-container">
+                <button id="btn-roll" onclick="rollDice()">Roll Dice</button>
+                <div id="dice-result">-</div>
+                <div id="multiplier-display"></div>
+                <span id="turn-instructions"></span>
+            </div>
+            <button id="btn-end-turn" onclick="endTurn()" disabled>End Turn</button>
+        </div>
+    </div>
+
+    <div id="modal" style="display: none;">
+        <div class="modal-content" id="modal-box">
+            <div class="modal-title" id="modal-title">Event Title</div>
+            <div class="modal-desc" id="modal-desc">Event description goes here.</div>
+            <div class="modal-apes" id="modal-apes-container">
+                <span class="modal-apes-label">APES Science Concept</span>
+                <span id="modal-apes">APES Science Concept</span>
+            </div>
+            <div id="modal-actions">
+                <button onclick="closeModal()">Acknowledge</button>
+                <button id="btn-buy" style="display: none; border-color: var(--neon-green); color: var(--neon-green); margin-left: 15px;" onclick="buyProperty()"></button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// --- Tutorial Logic ---
+const TUTORIAL_STEPS = [
+    { title: "THE MISSION", desc: "Welcome to the neon streets of the Power Grid.\n\nYour goal: Have the highest final score after 15 Rounds.\n\nBut beware... if you and your rivals pollute the environment too much, the city collapses and EVERYONE LOSES." },
+    { title: "YOUR TURN", desc: "1. Click ROLL DICE on your turn.\n\n2. Your dice roll becomes a MULTIPLIER on all money effects this turn. Roll a 6 and gain or lose 6x the money on your card. Roll a 1 and the effect is minimal.\n\n3. Pollution consequences stay the same no matter what you roll. Only money is multiplied.\n\n4. Click ANY zone on the map to move there and draw a card.\n\n5. Read and resolve your AP Environmental Science event card." },
+    { title: "MULTIPLIER EXAMPLE", desc: "You roll a 5. You move to the Oil Refinery and draw Offshore Blowout which normally costs $200. With your x5 multiplier you lose $1000 instead. But if you had moved to the Solar Array and drawn Government Subsidy which normally gives $200, you would have gained $1000. Every roll is a gamble — choose your zone carefully." },
+    { title: "BUYING TURF", desc: "If you have enough cash, you can 'Buy Turf' in the zone you land on.\n\nOwning turf gives you PASSIVE INCOME at the start of your next turns. But dirty energy (Coal/Oil) will also generate PASSIVE POLLUTION every turn!" },
+    { title: "POLLUTION LEVELS", desc: "There are two types of Pollution to watch out for:\n\nPERSONAL POLLUTION POINTS: Hurts your final score. You lose $10 for every personal pollution point at the end of the game.\n\nGLOBAL POLLUTION LEVEL: Fills the giant meter at the top of the screen. If it hits 100/100, the game immediately ends in a loss for everyone." },
+    { title: "GLOBAL CRISES", desc: "Every time you roll the dice, there is a 15% chance to trigger a massive Global Crisis event, like a Wildfire or Carbon Tax, that hits all players at once.\n\nMake smart choices, learn the science, and dominate the grid. Good luck." }
+];
+
+let tutIndex = 0;
+let tutorialSource = 'menu';
+
+function startTutorial(source) {
+    tutorialSource = source;
+    if (source === 'menu') {
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('btn-tut-close').innerText = "Skip to Map";
+    } else {
+        document.getElementById('btn-tut-close').innerText = "Close Briefing";
+    }
+    
+    document.getElementById('tutorial-screen').style.display = 'flex';
+    tutIndex = 0;
+    renderTutorial();
+}
+
+function renderTutorial() {
+    const step = TUTORIAL_STEPS[tutIndex];
+    document.getElementById('tutorial-progress').innerText = `BRIEFING: STEP ${tutIndex + 1} OF ${TUTORIAL_STEPS.length}`;
+    document.getElementById('tutorial-title').innerText = step.title;
+    document.getElementById('tutorial-desc').innerText = step.desc;
+    
+    document.getElementById('btn-tut-prev').disabled = tutIndex === 0;
+    
+    const nextBtn = document.getElementById('btn-tut-next');
+    if (tutIndex === TUTORIAL_STEPS.length - 1) {
+        nextBtn.innerText = "FINISH";
+        nextBtn.style.borderColor = "var(--neon-pink)";
+        nextBtn.style.color = "var(--neon-pink)";
+    } else {
+        nextBtn.innerText = "NEXT";
+        nextBtn.style.borderColor = "var(--neon-yellow)";
+        nextBtn.style.color = "var(--neon-yellow)";
+    }
+}
+
+function changeTutorial(dir) {
+    tutIndex += dir;
+    if (tutIndex >= TUTORIAL_STEPS.length) {
+        closeTutorial();
+    } else {
+        renderTutorial();
+    }
+}
+
+function closeTutorial() {
+    document.getElementById('tutorial-screen').style.display = 'none';
+    if (tutorialSource === 'menu') {
+        document.getElementById('setup-screen').style.display = 'flex';
+    }
+}
+
+// --- Game Data & APES Content ---
+const ZONE_TYPES = {
+    COAL: { id: 'coal', name: 'Coal District', bg: 'var(--coal)', price: 300, passiveInc: 100, passivePol: 5 },
+    OIL: { id: 'oil', name: 'Oil Refinery', bg: 'var(--oil)', price: 400, passiveInc: 120, passivePol: 4 },
+    GAS: { id: 'gas', name: 'Nat Gas Field', bg: 'var(--gas)', price: 250, passiveInc: 80, passivePol: 2 },
+    SOLAR: { id: 'solar', name: 'Solar Array', bg: 'var(--solar)', price: 600, passiveInc: 50, passivePol: -2 },
+    WIND: { id: 'wind', name: 'Wind Farm', bg: 'var(--wind)', price: 500, passiveInc: 40, passivePol: -1 },
+    NUCLEAR: { id: 'nuclear', name: 'Nuclear Plant', bg: 'var(--nuclear)', price: 800, passiveInc: 150, passivePol: 0 },
+    CITY: { id: 'city', name: 'Downtown', bg: 'var(--city)', price: 0, passiveInc: 0, passivePol: 0 } 
+};
+
+const ZONES_LAYOUT = [
+    ZONE_TYPES.WIND, ZONE_TYPES.CITY, ZONE_TYPES.SOLAR,
+    ZONE_TYPES.GAS, ZONE_TYPES.NUCLEAR, ZONE_TYPES.OIL,
+    ZONE_TYPES.COAL, ZONE_TYPES.CITY, ZONE_TYPES.CITY 
+];
+
+const CARDS = {
+    coal: [
+        { t: "Acid Rain Damage", d: "Pay $50 for building repairs. Global Pollution Level +5.", inc: -50, pol: 2, gPol: 5, apes: "Coal combustion releases SO2 and NOx, which mix with water vapor to form sulfuric and nitric acid (Acid Rain)." },
+        { t: "Scrubber Installation", d: "Costly regulations! Pay $100. Personal Pollution Points -3.", inc: -100, pol: -3, gPol: -2, apes: "Wet scrubbers use a liquid spray to wash SO2 and particulates out of smokestack emissions." },
+        { t: "Ash Spill", d: "Toxic sludge hits the river. Pay $150, Global Pollution Level +8.", inc: -150, pol: 4, gPol: 8, apes: "Coal ash contains heavy metals (lead, mercury, arsenic) which can leach into groundwater or spill from retention ponds." },
+        { t: "Cheap Energy Boom", d: "High energy output! Gain $200. Global Pollution Level +5.", inc: 200, pol: 2, gPol: 5, apes: "Coal is abundant and energy-dense (high EROI), making it economically cheap but environmentally costly." },
+        { t: "Black Lung Compensation", d: "Pay $100 to medical funds.", inc: -100, pol: 0, gPol: 0, apes: "Subsurface coal mining exposes workers to coal dust, leading to severe respiratory illnesses." },
+        { t: "Electrostatic Precipitator", d: "Upgrade facility. Pay $50, Pollution Points -2.", inc: -50, pol: -2, gPol: -2, apes: "Precipitators impart a negative charge to particulates in emissions, which then stick to positively charged collection plates." },
+        { t: "Strip Mining Runoff", d: "Soil erosion damages local habitats. Pay $100, Global Pollution Level +5.", inc: -100, pol: 3, gPol: 5, apes: "Surface mining removes vegetation and topsoil, leading to severe soil erosion and acid mine drainage into local watersheds." },
+        { t: "Carbon Capture Subsidies", d: "Government grant received! Gain $150, Pollution Points -2.", inc: 150, pol: -2, gPol: -2, apes: "Carbon Capture and Sequestration (CCS) tech captures CO2 from smokestacks and stores it underground, but it is expensive to implement." }
+    ],
+    oil: [
+        { t: "Offshore Blowout", d: "Massive spill! Lose $200, Global Pollution Level +10.", inc: -200, pol: 5, gPol: 10, apes: "Deepwater drilling carries the risk of blowouts. Oil coats birds, ruins marine fur insulation, and sinks to benthic ecosystems." },
+        { t: "Tar Sands Extraction", d: "Low EROI, high profit. Gain $150, Global Pollution Level +6.", inc: 150, pol: 3, gPol: 6, apes: "Extracting bitumen from tar sands requires massive amounts of water and natural gas, resulting in severe habitat destruction." },
+        { t: "OPEC Price Hike", d: "Oil prices surge! Gain $250.", inc: 250, pol: 0, gPol: 0, apes: "Geopolitical control of nonrenewable resources can cause artificial scarcity and global economic impacts." },
+        { t: "Photochemical Smog Alert", d: "Production halts. Lose $50, Global Pollution Level +5.", inc: -50, pol: 2, gPol: 5, apes: "VOCs and NOx from oil refineries react with sunlight to form tropospheric ozone, a key component of smog." },
+        { t: "Pipeline Leak", d: "Soil contaminated. Pay $100 cleanup.", inc: -100, pol: 2, gPol: 4, apes: "Terrestrial pipeline leaks severely degrade soil health and can contaminate local aquifers." },
+        { t: "Bioremediation", d: "Bacteria eat the spill! Pay $50, Global Pollution Level -5.", inc: -50, pol: -2, gPol: -5, apes: "Bioremediation uses microorganisms to naturally break down hydrocarbons into less toxic substances." },
+        { t: "Refinery Flaring", d: "Waste gas burned. Gain $100, Global Pollution Level +4.", inc: 100, pol: 2, gPol: 4, apes: "Gas flaring burns off unusable waste gas at oil refineries, releasing CO2, black carbon, and VOCs into the atmosphere." },
+        { t: "Strategic Petroleum Reserve", d: "Government contract. Gain $200.", inc: 200, pol: 0, gPol: 0, apes: "Governments stockpile oil in natural underground caverns to protect against economic shocks from supply disruptions." }
+    ],
+    gas: [
+        { t: "Fracking Earthquake", d: "Infrastructure damage. Lose $100.", inc: -100, pol: 0, gPol: 0, apes: "Hydraulic fracturing wastewater injected deep underground can lubricate fault lines, inducing seismic activity." },
+        { t: "Methane Leak", d: "Undetected pipe leak. Global Pollution Level +8.", inc: 0, pol: 3, gPol: 8, apes: "Natural gas is mostly methane (CH4), a greenhouse gas with a global warming potential ~25x greater than CO2 over 100 years." },
+        { t: "Transition Fuel Bonus", d: "Replaced a coal plant! Gain $150, Global Pollution Level -3.", inc: 150, pol: -1, gPol: -3, apes: "Natural gas emits about half the CO2 of coal per unit of energy, often viewed as a 'bridge fuel'." },
+        { t: "Groundwater Contamination", d: "Fracking fluid leaks. Pay $150.", inc: -150, pol: 2, gPol: 4, apes: "Poorly cased fracking wells can allow chemical-laced fluids and methane to seep into local drinking water aquifers." },
+        { t: "Cogeneration Upgrade", d: "Efficiency boosts! Gain $100.", inc: 100, pol: 0, gPol: -2, apes: "Cogeneration (Combined Heat and Power) uses the waste heat generated from electricity production for direct heating, raising efficiency." },
+        { t: "Winter Demand Spike", d: "Heating demand rises. Gain $200, Global Pollution Level +3.", inc: 200, pol: 1, gPol: 3, apes: "Seasonal energy demands highlight the reliance on natural gas for residential heating." },
+        { t: "LNG Export Terminal", d: "Massive export profits! Gain $250, Global Pollution Level +3.", inc: 250, pol: 1, gPol: 3, apes: "Liquefied Natural Gas (LNG) is cooled to a liquid state for transport. The chilling and transport processes are highly energy-intensive." },
+        { t: "Methane Flaring Ban", d: "Forced to capture gas. Lose $100, Pollution Points -2.", inc: -100, pol: -2, gPol: -3, apes: "Regulations banning the venting and flaring of methane force companies to capture the gas, reducing greenhouse gas emissions but raising costs." }
+    ],
+    solar: [
+        { t: "High Upfront Cost", d: "Panel manufacturing. Pay $150.", inc: -150, pol: 0, gPol: 0, apes: "While operational costs are low, manufacturing solar PV cells requires mining heavy metals and energy-intensive silicon processing." },
+        { t: "Desert Habitat Loss", d: "Utility-scale farm built. Pay $50, Global Pollution Level +2.", inc: -50, pol: 1, gPol: 2, apes: "Large scale Concentrated Solar Power (CSP) or PV farms require massive land clearing, fragmenting fragile desert ecosystems." },
+        { t: "Net Metering Check", d: "Sell surplus to grid! Gain $100.", inc: 100, pol: -1, gPol: -2, apes: "Net metering allows consumers who generate their own electricity to feed it back into the grid, offsetting costs." },
+        { t: "Cloudy Week", d: "Intermittency issues. Lose $50.", inc: -50, pol: 0, gPol: 0, apes: "Solar energy is intermittent (sun doesn't always shine). It requires battery storage or backup grid power to be reliable." },
+        { t: "E-Waste Disposal", d: "Old panels expire. Pay $100.", inc: -100, pol: 2, gPol: 2, apes: "Solar panels have a 20-30 year lifespan. Discarded panels create e-waste containing toxic metals like lead and cadmium." },
+        { t: "Government Subsidy", d: "Tax credit received! Gain $200.", inc: 200, pol: -2, gPol: -4, apes: "Governments often use subsidies and tax incentives to artificially lower the cost of renewables and encourage adoption." },
+        { t: "Perovskite Cell Breakthrough", d: "New tech boosts profits! Gain $200, Pollution Points -1.", inc: 200, pol: -1, gPol: -2, apes: "Perovskite solar cells offer potentially higher efficiencies and cheaper manufacturing than traditional silicon cells, driving rapid innovation." },
+        { t: "Agrivoltaics Pilot", d: "Farm tech expands. Gain $100, Pollution Points -2.", inc: 100, pol: -2, gPol: -2, apes: "Combining solar panels with agriculture (agrivoltaics) maximizes land use, providing shade for crops while panels generate clean energy." }
+    ],
+    wind: [
+        { t: "Avian Strike", d: "Migratory birds hit. Pay $50 PR cost.", inc: -50, pol: 1, gPol: 0, apes: "Wind turbine blades can strike and kill migrating birds and bats, though proper placement reduces this risk." },
+        { t: "NIMBY Protests", d: "Locals hate the noise. Lose next turn's passive income.", inc: -100, pol: 0, gPol: 0, apes: "NIMBY (Not In My Back Yard) syndrome occurs when residents support renewables in theory but oppose local installation due to aesthetic or noise concerns." },
+        { t: "Offshore Wind Boom", d: "Strong ocean winds! Gain $200.", inc: 200, pol: -1, gPol: -3, apes: "Offshore wind farms capitalize on stronger, more consistent ocean breezes, producing higher energy yields than onshore." },
+        { t: "Grid Transmission Loss", d: "Remote farm loses power in transit. Lose $50.", inc: -50, pol: 0, gPol: 0, apes: "Because optimal wind locations are often far from population centers, energy is lost as heat during long-distance transmission." },
+        { t: "Kinetic Conversion", d: "High efficiency tech installed. Gain $100.", inc: 100, pol: 0, gPol: -2, apes: "Wind turbines convert the kinetic energy of moving air into mechanical energy, then electrical energy via a generator." },
+        { t: "Rare Earth Mining", d: "Neodymium for magnets. Pay $100, Pollution Points +2.", inc: -100, pol: 1, gPol: 2, apes: "Turbine generators require rare earth metals. Mining these metals causes habitat destruction and acid mine drainage." },
+        { t: "Blade Microplastics", d: "Erosion concerns. Lose $50, Pollution Points +1.", inc: -50, pol: 1, gPol: 1, apes: "Erosion of wind turbine blades over time can shed microplastics into the surrounding environment." },
+        { t: "Grid Curtailment", d: "Overproduction wastes energy. Lose $100.", inc: -100, pol: 0, gPol: 0, apes: "When wind energy production exceeds grid capacity or transmission limits, operators must 'curtail' or shut off turbines, wasting potential energy." }
+    ],
+    nuclear: [
+        { t: "Thermal Pollution", d: "Hot water harms river life. Global Pollution Level +4.", inc: 0, pol: 2, gPol: 4, apes: "Nuclear plants use water for cooling. Discharging hot water back into aquatic ecosystems lowers dissolved oxygen, killing fish." },
+        { t: "High EROI Output", d: "Massive baseline power! Gain $300.", inc: 300, pol: 0, gPol: -2, apes: "A single uranium pellet produces as much energy as a ton of coal. Nuclear provides massive, reliable baseload power with zero CO2 emissions during operation." },
+        { t: "Spent Fuel Storage", d: "Dry cask costs. Pay $150.", inc: -150, pol: 1, gPol: 1, apes: "High-level radioactive waste remains dangerous for 10,000+ years. Lacking a permanent geologic repository, it is stored on-site in water pools or dry casks." },
+        { t: "Uranium Mining Tailings", d: "Mine runoff. Pay $100, Global Pollution Level +3.", inc: -100, pol: 2, gPol: 3, apes: "Mining U-235 leaves behind radioactive tailings (waste rock) that can blow in the wind or leach into groundwater." },
+        { t: "Control Rod Upgrade", d: "Safety check passed. Pay $50.", inc: -50, pol: 0, gPol: 0, apes: "Control rods (often boron or cadmium) are inserted between fuel rods to absorb neutrons and slow down the fission chain reaction." },
+        { t: "Public Fear / Meltdown Risk", d: "Insurance premiums rise. Lose $100.", inc: -100, pol: 0, gPol: 0, apes: "While statistically very safe, major accidents like Chernobyl and Fukushima have caused widespread public fear of radiation release." },
+        { t: "Small Modular Reactors", d: "New cheaper tech deployed. Gain $250.", inc: 250, pol: 0, gPol: -2, apes: "SMRs are advanced nuclear reactors that are smaller, cheaper to build, and have passive safety systems that rely on natural circulation." },
+        { t: "Cooling Tower Maintenance", d: "Evaporation system repairs. Lose $100, Pollution Points -1.", inc: -100, pol: -1, gPol: -1, apes: "Cooling towers transfer waste heat to the atmosphere through the evaporation of water, preventing thermal pollution of local waterways." }
+    ],
+    city: [
+        { t: "Urban Heat Island", d: "AC usage spikes. Lose $50, Global Pollution Level +2.", inc: -50, pol: 1, gPol: 2, apes: "Concrete and asphalt in cities absorb and trap heat, making urban areas significantly warmer than surrounding rural areas." },
+        { t: "Mass Transit Expansion", d: "Fewer cars! Gain $50, Global Pollution Level -4.", inc: 50, pol: -2, gPol: -4, apes: "Public transportation greatly reduces per-capita carbon emissions and mitigates photochemical smog in urban centers." },
+        { t: "Impervious Surfaces", d: "Flash flood! Pay $100 repairs.", inc: -100, pol: 0, gPol: 2, apes: "Paved urban surfaces prevent water infiltration, increasing runoff volume and carrying pollutants directly into storm drains." },
+        { t: "Gentrification", d: "Property values rise. Gain $100.", inc: 100, pol: 0, gPol: 0, apes: "Urban renewal can improve infrastructure but often displaces low-income residents, creating environmental justice issues." },
+        { t: "Smog Inversion", d: "Trapped pollution! Global Pollution Level +5.", inc: 0, pol: 2, gPol: 5, apes: "A thermal inversion occurs when a layer of warm air traps cooler, polluted air near the ground, dangerously concentrating smog." },
+        { t: "Rooftop Gardens", d: "Green initiative! Gain $50, Global Pollution Level -3.", inc: 50, pol: -1, gPol: -3, apes: "Green roofs absorb rainwater, provide insulation, and reduce the urban heat island effect." },
+        { t: "Green Belt Zoning", d: "Sprawl limits enforced. Lose $50, Global Pollution Level -3.", inc: -50, pol: -2, gPol: -3, apes: "Urban planning that preserves rings of undeveloped land around a city limits urban sprawl and protects local biodiversity." },
+        { t: "EV Charging Infrastructure", d: "City modernization! Gain $100, Global Pollution Level -2.", inc: 100, pol: -1, gPol: -2, apes: "Expanding electric vehicle networks reduces reliance on internal combustion engines, lowering local NOX and particulate emissions." }
+    ]
+};
+
+const CRISIS_EVENTS = [
+    { t: "GLOBAL HEATWAVE", d: "Grid overload! Everyone loses $100.", effect: () => players.forEach(p => p.money -= 100), apes: "Climate change increases the frequency and intensity of extreme weather events, stressing human infrastructure." },
+    { t: "CARBON TAX ENACTED", d: "Pay $20 for every Pollution Point you have.", effect: () => players.forEach(p => p.money -= (p.pollution * 20)), apes: "A carbon tax internalizes the externality of pollution by making emitters pay for their environmental damage." },
+    { t: "WILDFIRE OUTBREAK", d: "Global Pollution Level +15!", effect: () => updateGlobalPollution(15), apes: "Drought and higher temperatures create dry brush (fuel), leading to massive wildfires that release huge plumes of particulate matter." },
+    { t: "CORAL BLEACHING EVENT", d: "Global Pollution Level +8!", effect: () => updateGlobalPollution(8), apes: "Rising ocean temperatures caused by climate change cause coral polyps to expel their symbiotic algae zooxanthellae turning them white and eventually killing them." },
+    { t: "EPA EMERGENCY REGULATION", d: "Every player with more than 10 pollution points must pay $150 in fines.", effect: () => players.forEach(p => { if(p.pollution > 10) p.money -= 150; }), apes: "The Environmental Protection Agency enforces pollution limits through the Clean Air Act and Clean Water Act penalizing companies that exceed legal thresholds." },
+    { t: "FLASH FLOOD DISASTER", d: "Everyone loses $75. Global Pollution Level +6.", effect: () => { players.forEach(p => p.money -= 75); updateGlobalPollution(6); }, apes: "Increased precipitation intensity from climate change overwhelms urban drainage systems leading to flash flooding that carries pollutants into waterways." },
+    { t: "OZONE LAYER DEPLETION ALERT", d: "Every player loses $50.", effect: () => players.forEach(p => p.money -= 50), apes: "Chlorofluorocarbons and other ozone depleting substances break down stratospheric ozone which normally blocks harmful UV-B radiation from reaching Earth's surface." },
+    { t: "OCEAN ACIDIFICATION CRISIS", d: "Every player loses $100. Global Pollution Level +5.", effect: () => { players.forEach(p => p.money -= 100); updateGlobalPollution(5); }, apes: "Oceans absorb about 30 percent of atmospheric CO2 which reacts with seawater to form carbonic acid lowering pH and threatening shellfish and coral reef ecosystems." },
+    { t: "RENEWABLE ENERGY SUMMIT", d: "Every player who owns a solar or wind zone gains $200.", effect: () => players.forEach(p => { const ownsRenewable = Object.entries(propertiesOwned).some(([zId, ownerId]) => ownerId === p.id && (ZONES_LAYOUT[zId].id === 'solar' || ZONES_LAYOUT[zId].id === 'wind')); if(ownsRenewable) p.money += 200; }), apes: "International climate agreements like the Paris Accord encourage nations to accelerate investment in renewable energy infrastructure to limit warming to 1.5 degrees Celsius." },
+    { t: "DROUGHT AND WATER SCARCITY", d: "Every player loses $80. Global Pollution Level +4.", effect: () => { players.forEach(p => p.money -= 80); updateGlobalPollution(4); }, apes: "Prolonged drought reduces freshwater availability in rivers and aquifers forcing communities to rely on energy intensive desalination or water transfer projects." }
+];
+
+const PLAYER_COLORS = ['#ff073a', '#0ff', '#ffea00', '#39ff14']; // Neon Red, Cyan, Yellow, Green
+
+// --- Game State ---
+let players = [];
+let currentPlayerIndex = 0;
+let globalPollution = 0;
+let gameState = 'START'; 
+let propertiesOwned = {}; 
+let currentRound = 1;
+const MAX_ROUNDS = 15;
+let diceMultiplier = 1; // NEW MULTIPLIER VARIABLE
+
+// --- Initialization ---
+function startGame(numPlayers) {
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('tutorial-screen').style.display = 'none';
+    
+    for(let i=0; i<numPlayers; i++) {
+        players.push({
+            id: i,
+            name: `Player 0${i+1}`,
+            color: PLAYER_COLORS[i],
+            money: 1000,
+            pollution: 0,
+            pos: 8 // Start at bottom right
+        });
+    }
+
+    renderMap();
+    createTokens();
+    updateSidebar();
+    
+    setTimeout(() => {
+        players.forEach(p => moveTokenVisuals(p));
+        startTurn();
+    }, 100);
+}
+
+// --- Rendering ---
+function renderMap() {
+    const mapDiv = document.getElementById('map');
+    mapDiv.innerHTML = '';
+    
+    ZONES_LAYOUT.forEach((zone, index) => {
+        const div = document.createElement('div');
+        div.className = 'zone';
+        div.id = `zone-${index}`;
+        div.style.backgroundColor = zone.bg;
+        div.onclick = () => handleZoneClick(index);
+        
+        div.innerHTML = `
+            <div class="zone-content">
+                <div class="zone-title">${zone.name}</div>
+                <div style="font-size: 18px; color: var(--neon-green); margin-top:8px;">${zone.price > 0 ? '$'+zone.price : 'Public Turf'}</div>
+                <div class="zone-owner" id="owner-${index}">Unclaimed</div>
+            </div>
+        `;
+        mapDiv.appendChild(div);
+    });
+}
+
+function createTokens() {
+    const mapDiv = document.getElementById('map');
+    players.forEach(p => {
+        const token = document.createElement('div');
+        token.className = 'player-token';
+        token.id = `token-${p.id}`;
+        token.style.backgroundColor = p.color;
+        token.innerHTML = `<div class="windshield"></div>`; // Car detail
+        mapDiv.appendChild(token);
+    });
+}
+
+function moveTokenVisuals(player) {
+    const token = document.getElementById(`token-${player.id}`);
+    const targetZone = document.getElementById(`zone-${player.pos}`);
+    
+    // Move cars to the top edge of the zone so they don't cover text
+    let top = targetZone.offsetTop + 15; 
+    let left = targetZone.offsetLeft + (targetZone.offsetWidth / 2) - 18;
+    
+    // Offset so cars don't perfectly stack
+    top += (player.id > 1 ? 25 : 0);
+    left += (player.id % 2 === 0 ? 30 : -30);
+
+    token.style.top = `${top}px`;
+    token.style.left = `${left}px`;
+    
+    // Rotate car slightly based on player ID to look cool
+    token.style.transform = `rotate(${[0, 15, -15, 5][player.id]}deg)`;
+}
+
+function updateSidebar() {
+    const container = document.getElementById('players-container');
+    container.innerHTML = '';
+    
+    players.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.className = `player-card ${i === currentPlayerIndex ? 'active-player' : ''}`;
+        
+        let polPct = Math.min(100, (p.pollution / 50) * 100);
+
+        div.innerHTML = `
+            <h3 style="margin:0 0 10px 0; color:${p.color}; font-size: 24px; text-shadow: 0 0 10px ${p.color};">${p.name}</h3>
+            <div style="font-size: 26px; color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green);">$${p.money}</div>
+            <div style="font-size: 22px; color: var(--neon-red); font-weight: bold; margin-top: 10px; text-shadow: 0 0 5px var(--neon-red);">
+                POLLUTION: ${p.pollution}
+            </div>
+            <div class="mini-pol-bar-bg">
+                <div class="mini-pol-bar-fill" style="width: ${polPct}%;"></div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function updateGlobalPollution(amount) {
+    globalPollution += amount;
+    if (globalPollution < 0) globalPollution = 0;
+    
+    const bar = document.getElementById('pollution-bar-fill');
+    const text = document.getElementById('pollution-text');
+    
+    let pct = Math.min(globalPollution, 100);
+    bar.style.width = `${pct}%`;
+    text.innerText = `${globalPollution} / 100`;
+
+    if (globalPollution >= 100) {
+        endGame("ENVIRONMENTAL COLLAPSE");
+    }
+}
+
+// --- Gameplay Logic ---
+function startTurn() {
+    document.getElementById('round-counter-text').innerText = `ROUND ${currentRound} OF ${MAX_ROUNDS}`;
+
+    const p = players[currentPlayerIndex];
+    gameState = 'ROLLING';
+    
+    // Reset Multiplier variables and visual indicators
+    diceMultiplier = 1;
+    document.getElementById('multiplier-display').style.display = 'none';
+    
+    document.getElementById('btn-roll').disabled = false;
+    document.getElementById('btn-end-turn').disabled = true;
+    document.getElementById('turn-instructions').innerText = `${p.name} - ROLL DICE`;
+    document.getElementById('dice-result').innerText = '-';
+
+    let passiveInc = 0;
+    let passivePol = 0;
+    Object.keys(propertiesOwned).forEach(zoneIdx => {
+        if (propertiesOwned[zoneIdx] === p.id) {
+            const zoneType = ZONES_LAYOUT[zoneIdx];
+            passiveInc += zoneType.passiveInc;
+            passivePol += zoneType.passivePol;
+        }
+    });
+
+    if (passiveInc !== 0 || passivePol !== 0) {
+        p.money += passiveInc;
+        p.pollution += passivePol;
+        updateGlobalPollution(passivePol);
+        
+        // Flash the player card to indicate passive income/heat
+        const card = document.querySelectorAll('.player-card')[currentPlayerIndex];
+        card.style.backgroundColor = 'rgba(57, 255, 20, 0.3)';
+        setTimeout(() => card.style.backgroundColor = 'rgba(0, 0, 0, 0.8)', 500);
+    }
+
+    updateSidebar();
+}
+
+function rollDice() {
+    if (gameState !== 'ROLLING') return;
+    
+    const diceDiv = document.getElementById('dice-result');
+    diceDiv.classList.add('rolling');
+    
+    setTimeout(() => {
+        diceDiv.classList.remove('rolling');
+        const roll = Math.floor(Math.random() * 6) + 1;
+        diceDiv.innerText = roll;
+        
+        // Set the dice multiplier
+        diceMultiplier = roll;
+        
+        // Show multiplier visual indicator next to dice
+        const multDisplay = document.getElementById('multiplier-display');
+        multDisplay.innerText = `x${roll} MULTIPLIER`;
+        multDisplay.style.display = 'block';
+
+        document.getElementById('btn-roll').disabled = true;
+        
+        gameState = 'MOVING';
+        // Update turn instructions
+        document.getElementById('turn-instructions').innerText = `ROLLED A ${roll} — x${roll} MULTIPLIER ACTIVE — CHOOSE YOUR ZONE WISELY`;
+
+        if (Math.random() < 0.15) {
+            triggerCrisis();
+        }
+    }, 400);
+}
+
+function triggerCrisis() {
+    const crisis = CRISIS_EVENTS[Math.floor(Math.random() * CRISIS_EVENTS.length)];
+    crisis.effect();
+    
+    const modalBox = document.getElementById('modal-box');
+    modalBox.classList.add('crisis-border');
+    
+    document.getElementById('modal-title').innerText = crisis.t;
+    document.getElementById('modal-title').style.color = 'var(--neon-red)';
+    document.getElementById('modal-desc').innerText = crisis.d;
+    document.getElementById('modal-apes').innerText = crisis.apes;
+    document.getElementById('btn-buy').style.display = 'none';
+    document.getElementById('modal').style.display = 'flex';
+    
+    updateSidebar();
+}
+
+function handleZoneClick(index) {
+    if (gameState !== 'MOVING') return;
+    
+    const p = players[currentPlayerIndex];
+    p.pos = index;
+    moveTokenVisuals(p); 
+    
+    gameState = 'EVENT';
+    document.getElementById('turn-instructions').innerText = `DEALING...`;
+    
+    setTimeout(() => {
+        triggerZoneEvent(index);
+    }, 600);
+}
+
+let currentZoneIndexForBuy = -1;
+
+function triggerZoneEvent(index) {
+    const zoneType = ZONES_LAYOUT[index];
+    const deck = CARDS[zoneType.id];
+    const card = deck[Math.floor(Math.random() * deck.length)];
+    const p = players[currentPlayerIndex];
+
+    // Apply Dice Multiplier solely to the money effect
+    const actualInc = card.inc * diceMultiplier;
+
+    p.money += actualInc;
+    p.pollution += card.pol;
+    updateGlobalPollution(card.gPol);
+
+    const modalBox = document.getElementById('modal-box');
+    modalBox.classList.remove('crisis-border');
+    document.getElementById('modal-title').innerText = card.t;
+    document.getElementById('modal-title').style.color = 'var(--neon-blue)';
+    
+    // Modify description text dynamically to make the multiplier effect clear
+    let modifiedDesc = card.d;
+    if (card.inc !== 0) {
+        let action = actualInc >= 0 ? "Gain" : "Lose";
+        modifiedDesc += `\n\n[DICE MULTIPLIER: ${action} $${Math.abs(actualInc)}]`;
+    }
+    document.getElementById('modal-desc').innerText = modifiedDesc;
+    
+    document.getElementById('modal-apes').innerText = card.apes;
+
+    const buyBtn = document.getElementById('btn-buy');
+    if (zoneType.price > 0 && propertiesOwned[index] === undefined) {
+        buyBtn.style.display = 'inline-block';
+        buyBtn.innerText = `Buy Turf ($${zoneType.price})`;
+        buyBtn.disabled = p.money < zoneType.price;
+        currentZoneIndexForBuy = index;
+    } else {
+        buyBtn.style.display = 'none';
+    }
+
+    document.getElementById('modal').style.display = 'flex';
+    updateSidebar();
+}
+
+function buyProperty() {
+    const p = players[currentPlayerIndex];
+    const zoneType = ZONES_LAYOUT[currentZoneIndexForBuy];
+    
+    if (p.money >= zoneType.price) {
+        p.money -= zoneType.price;
+        propertiesOwned[currentZoneIndexForBuy] = p.id;
+        const ownerDiv = document.getElementById(`owner-${currentZoneIndexForBuy}`);
+        ownerDiv.innerText = `OWNED: ${p.name}`;
+        ownerDiv.style.color = p.color;
+        ownerDiv.style.textShadow = `0 0 5px ${p.color}`;
+        
+        updateSidebar();
+        closeModal();
+    }
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+    
+    if (gameState === 'EVENT') {
+        document.getElementById('btn-end-turn').disabled = false;
+        document.getElementById('turn-instructions').innerText = `FINISH TURN`;
+    }
+}
+
+function endTurn() {
+    if (globalPollution >= 100) return; 
+    
+    currentPlayerIndex++;
+    if (currentPlayerIndex >= players.length) {
+        currentPlayerIndex = 0;
+        currentRound++;
+    }
+    
+    if (currentRound > MAX_ROUNDS) {
+        let sortedPlayers = [...players].sort((a,b) => (b.money - b.pollution * 10) - (a.money - a.pollution * 10));
+        let winner = sortedPlayers[0];
+        
+        endGame(`GAME OVER`);
+        document.getElementById('end-title').classList.remove('wasted-text');
+        document.getElementById('end-title').style.color = 'var(--neon-blue)';
+        document.getElementById('end-title').style.textShadow = '0 0 20px var(--neon-blue)';
+        document.getElementById('end-title').style.fontSize = '8vw';
+        
+        document.getElementById('end-subtitle').innerText = `${winner.name} WINS THE GAME!`;
+        document.getElementById('end-subtitle').style.color = 'var(--neon-yellow)';
+        return;
+    }
+
+    startTurn();
+}
+
+function endGame(reason) {
+    document.getElementById('end-screen').style.display = 'flex';
+    document.getElementById('end-title').innerText = reason;
+    
+    let html = `<table><tr><th>Player</th><th>Cash</th><th>Pollution Penalty</th><th>Final Score</th></tr>`;
+    
+    // Sort players by final score for the table
+    let sortedPlayers = [...players].sort((a,b) => (b.money - b.pollution * 10) - (a.money - a.pollution * 10));
+
+    sortedPlayers.forEach(p => {
+        const finalScore = p.money - (p.pollution * 10);
+        html += `<tr>
+            <td style="color:${p.color}; text-shadow: 0 0 5px ${p.color}; font-weight:bold;">${p.name}</td>
+            <td style="color:var(--neon-green)">$${p.money}</td>
+            <td style="color:var(--neon-red)">${p.pollution} pts (-$${p.pollution*10})</td>
+            <td><strong style="color: #fff;">${finalScore}</strong></td>
+        </tr>`;
+    });
+    html += `</table>`;
+    
+    if(globalPollution >= 100) {
+        document.getElementById('end-subtitle').innerText = "The Grid Collapsed. Critical Toxicity Reached.";
+        document.getElementById('end-subtitle').style.color = "var(--neon-red)";
+    } else if (reason === "GAME OVER") {
+        // Subtitle already set in endTurn
+    }
+
+    document.getElementById('results-table').innerHTML = html;
+}
+</script>
+</body>
+</html>
